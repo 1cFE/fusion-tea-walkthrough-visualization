@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fusion TEA — Pipeline Walkthrough</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f5f4f0;
+  --color-background-tertiary: #eeecea;
+  --color-background-info: #e6f1fb;
+  --color-background-success: #eaf3de;
+  --color-background-warning: #faeeda;
+  --color-background-danger: #fcebeb;
+  --color-text-primary: #1a1a18;
+  --color-text-secondary: #5f5e5a;
+  --color-text-tertiary: #888780;
+  --color-text-info: #185fa5;
+  --color-text-success: #3b6d11;
+  --color-text-warning: #854f0b;
+  --color-text-danger: #a32d2d;
+  --color-border-tertiary: rgba(0,0,0,0.12);
+  --color-border-secondary: rgba(0,0,0,0.22);
+  --color-border-success: #639922;
+  --color-border-warning: #854f0b;
+  --color-border-danger: #a32d2d;
+  --font-sans: system-ui, -apple-system, sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-mono: 'Courier New', monospace;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background-primary: #1e1e1c;
+    --color-background-secondary: #2a2a27;
+    --color-background-info: #0c2d4a;
+    --color-background-success: #152808;
+    --color-background-warning: #3a2004;
+    --color-background-danger: #2e0e0e;
+    --color-text-primary: #e8e6df;
+    --color-text-secondary: #a8a69f;
+    --color-text-tertiary: #6e6c66;
+    --color-text-info: #85b7eb;
+    --color-text-success: #97c459;
+    --color-text-warning: #ef9f27;
+    --color-text-danger: #f09595;
+    --color-border-tertiary: rgba(255,255,255,0.10);
+    --color-border-secondary: rgba(255,255,255,0.20);
+    --color-border-success: #639922;
+    --color-border-warning: #854f0b;
+  }
+}
+
+body { font-family:var(--font-sans); color:var(--color-text-primary); background:var(--color-background-primary); padding:2rem; max-width:900px; margin:0 auto; font-size:16px; line-height:1.7; }
+
+.phase-nav { display:flex; gap:0; margin-bottom:2rem; border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); overflow:hidden; }
+.phase-btn { flex:1; padding:10px 6px; font-size:12px; font-weight:400; background:var(--color-background-primary); color:var(--color-text-secondary); border:none; border-right:0.5px solid var(--color-border-tertiary); cursor:pointer; line-height:1.3; text-align:center; }
+.phase-btn:last-child { border-right:none; }
+.phase-btn.active { background:var(--color-background-info); color:var(--color-text-info); font-weight:500; }
+.phase-btn .sn { display:block; font-size:10px; opacity:0.65; margin-bottom:2px; }
+
+.dots { display:flex; gap:6px; align-items:center; justify-content:center; margin-bottom:1.5rem; }
+.dot { width:6px; height:6px; border-radius:50%; background:var(--color-border-secondary); transition:all 0.2s; }
+.dot.active { background:#185FA5; width:18px; border-radius:3px; }
+
+.phase-panel { display:none; }
+.phase-panel.active { display:block; }
+
+.slabel { font-size:11px; font-weight:500; letter-spacing:0.05em; color:var(--color-text-tertiary); text-transform:uppercase; margin-bottom:10px; }
+.prose { font-size:14px; line-height:1.7; color:var(--color-text-secondary); margin-bottom:1.5rem; }
+.nav-row { display:flex; justify-content:flex-end; gap:8px; margin-top:1.5rem; padding-top:1rem; border-top:0.5px solid var(--color-border-tertiary); }
+.btn-next { padding:8px 20px; font-size:14px; background:var(--color-background-info); color:var(--color-text-info); border:none; border-radius:var(--border-radius-md); cursor:pointer; font-weight:500; }
+.btn-back { padding:8px 20px; font-size:14px; background:var(--color-background-primary); color:var(--color-text-secondary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-md); cursor:pointer; }
+
+.badge { display:inline-block; font-size:11px; font-weight:500; padding:2px 7px; border-radius:var(--border-radius-md); white-space:nowrap; }
+.b-high    { background:#EAF3DE; color:#3B6D11; }
+.b-medium  { background:#FAEEDA; color:#854F0B; }
+.b-low     { background:#FCEBEB; color:#A32D2D; }
+.b-gap     { background:#FCEBEB; color:#A32D2D; }
+.b-def     { background:var(--color-background-secondary); color:var(--color-text-secondary); border:0.5px solid var(--color-border-tertiary); }
+.b-peer    { background:#EAF3DE; color:#3B6D11; }
+.b-company { background:#E6F1FB; color:#185FA5; }
+.b-changed { background:#FAEEDA; color:#854F0B; }
+
+.cdot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+.c-hi { background:#639922; } .c-me { background:#BA7517; } .c-lo { background:#E24B4A; }
+
+.src-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(255px,1fr)); gap:10px; margin-bottom:1.5rem; }
+.src-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:12px 14px; cursor:pointer; transition:border-color 0.15s; }
+.src-card:hover { border-color:var(--color-border-secondary); }
+.src-card.sel { border:1.5px solid #185FA5; background:var(--color-background-info); }
+.src-title { font-size:13px; font-weight:500; color:var(--color-text-primary); margin:6px 0 3px; line-height:1.4; }
+.src-meta  { font-size:11px; color:var(--color-text-secondary); }
+.src-contrib { font-size:12px; color:var(--color-text-info); margin-top:6px; line-height:1.4; display:none; }
+.src-card.sel .src-contrib { display:block; }
+
+.iter-bar { display:flex; gap:8px; margin-bottom:1rem; flex-wrap:wrap; }
+.iter-pill { padding:4px 12px; font-size:12px; border-radius:20px; cursor:pointer; border:0.5px solid var(--color-border-tertiary); background:var(--color-background-secondary); color:var(--color-text-secondary); }
+.iter-pill.active { background:var(--color-background-info); color:var(--color-text-info); border-color:transparent; }
+
+.block { border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); overflow:hidden; margin-bottom:10px; }
+.block-hdr { padding:10px 14px; background:var(--color-background-secondary); display:flex; align-items:center; justify-content:space-between; cursor:pointer; gap:10px; }
+.block-hdr .bh-title { font-size:13px; font-weight:500; flex:1; }
+.block-body { display:none; padding:12px 14px; }
+.block-body.open { display:block; }
+
+.raw-quote { font-family:var(--font-serif); font-size:13px; line-height:1.6; color:var(--color-text-secondary); border-left:2px solid var(--color-border-secondary); padding-left:12px; margin-bottom:10px; }
+.ext-arrow { display:flex; align-items:center; gap:8px; margin:8px 0; font-size:12px; color:var(--color-text-tertiary); }
+.ext-claim { background:var(--color-background-success); border:0.5px solid var(--color-border-success); border-radius:var(--border-radius-md); padding:8px 10px; font-size:13px; color:var(--color-text-success); line-height:1.4; }
+.ext-gap   { background:var(--color-background-warning); border:0.5px solid var(--color-border-warning); border-radius:var(--border-radius-md); padding:8px 10px; font-size:13px; color:var(--color-text-warning); line-height:1.4; margin-top:6px; }
+
+.trow { display:flex; align-items:flex-start; gap:10px; padding:7px 0; border-bottom:0.5px solid var(--color-border-tertiary); font-size:13px; }
+.trow:last-child { border-bottom:none; }
+.tcol { color:var(--color-text-secondary); min-width:145px; flex-shrink:0; }
+.tval { flex:1; }
+.tnote { font-size:12px; color:var(--color-text-tertiary); margin-top:2px; }
+
+.metric-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:1.5rem; }
+.metric-card { background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:14px; }
+.mc-lbl { font-size:12px; color:var(--color-text-secondary); margin-bottom:4px; }
+.mc-val { font-size:26px; font-weight:500; }
+.mc-unit { font-size:12px; color:var(--color-text-secondary); }
+
+.bar-row { display:flex; align-items:center; gap:10px; margin-bottom:7px; }
+.bar-lbl { font-size:12px; color:var(--color-text-secondary); width:165px; flex-shrink:0; text-align:right; }
+.bar-trk { flex:1; height:22px; background:var(--color-background-secondary); border-radius:var(--border-radius-md); overflow:hidden; }
+.bar-fill { height:100%; border-radius:var(--border-radius-md); display:flex; align-items:center; padding-left:8px; font-size:12px; font-weight:500; }
+.bar-end { font-size:12px; color:var(--color-text-secondary); width:65px; flex-shrink:0; text-align:right; }
+
+.sens-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+.sens-lbl { font-size:12px; color:var(--color-text-secondary); width:185px; flex-shrink:0; }
+.sens-trk { flex:1; height:20px; background:var(--color-background-secondary); border-radius:var(--border-radius-md); overflow:hidden; }
+.sens-fill { height:100%; display:flex; align-items:center; justify-content:flex-end; padding-right:6px; font-size:11px; font-weight:500; }
+.s-neg { background:#FCEBEB; color:#A32D2D; }
+.s-pos { background:#EAF3DE; color:#3B6D11; }
+.s-fin { background:#E6F1FB; color:#185FA5; }
+
+.con-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-bottom:1.5rem; }
+.con-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:14px; }
+.con-card.hl { background:var(--color-background-info); border:0.5px solid var(--color-border-tertiary); }
+.cc-name { font-size:14px; font-weight:500; margin-bottom:2px; }
+.cc-sub  { font-size:12px; color:var(--color-text-secondary); margin-bottom:12px; }
+.cc-lcoe { font-size:26px; font-weight:500; }
+.cc-unit { font-size:12px; color:var(--color-text-secondary); margin-bottom:10px; }
+.srow { display:flex; justify-content:space-between; font-size:12px; padding:3px 0; border-top:0.5px solid var(--color-border-tertiary); color:var(--color-text-secondary); }
+.srow span:last-child { color:var(--color-text-primary); font-weight:500; }
+
+input[type="range"] { -webkit-appearance:none; appearance:none; height:4px; background:var(--color-border-secondary); border-radius:2px; outline:none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#185FA5; cursor:pointer; }
+
+@media (max-width:600px) {
+  body { padding:1rem; }
+  .con-grid { grid-template-columns:1fr; }
+  .metric-grid { grid-template-columns:repeat(2,1fr); }
+  .phase-btn .sn { display:none; }
+  .phase-btn { font-size:11px; padding:8px 3px; }
+  .bar-lbl { width:90px; font-size:11px; }
+  .sens-lbl { width:130px; }
+}
+</style>
+</head>
+<body>
+
+<div class="dots" id="dots">
+  <div class="dot active"></div><div class="dot"></div><div class="dot"></div>
+  <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+</div>
+
+<div class="phase-nav">
+  <button class="phase-btn active" data-p="0" onclick="goTo(0)"><span class="sn">Step 1</span>Source extraction</button>
+  <button class="phase-btn" data-p="1" onclick="goTo(1)"><span class="sn">Step 2</span>Dossier synthesis</button>
+  <button class="phase-btn" data-p="2" onclick="goTo(2)"><span class="sn">Step 3</span>Gap assessment</button>
+  <button class="phase-btn" data-p="3" onclick="goTo(3)"><span class="sn">Step 4</span>Model inputs</button>
+  <button class="phase-btn" data-p="4" onclick="goTo(4)"><span class="sn">Step 5</span>LCOE results</button>
+  <button class="phase-btn" data-p="5" onclick="goTo(5)"><span class="sn">Step 6</span>Comparison</button>
+</div>
+
+<!-- ══ PHASE 0 ══════════════════════════════════════════════════ -->
+<div class="phase-panel active" id="phase-0">
+  <div class="slabel">ST-E1 spherical tokamak — Tokamak Energy · 3 research iterations · 11 sources</div>
+  <div class="prose">Each source is fetched, extracted, and filtered by the pipeline before any human reads it. A <code>decisions.json</code> records page-level filtering — pages with garbled equations or failed table detection are flagged <em>claude_replace</em> and reconstructed. Click any source card to see what it contributed and why it was kept.</div>
+
+  <div class="iter-bar">
+    <div class="iter-pill active" onclick="filterIter(this,'all')">All sources</div>
+    <div class="iter-pill" onclick="filterIter(this,'1')">Iteration 1</div>
+    <div class="iter-pill" onclick="filterIter(this,'2')">Iteration 2</div>
+    <div class="iter-pill" onclick="filterIter(this,'3')">Iteration 3</div>
+  </div>
+  <div class="src-grid" id="srcGrid"></div>
+
+  <div style="padding:10px 14px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-secondary);line-height:1.5;margin-bottom:1rem;">
+    After 3 iterations: <strong style="color:var(--color-text-primary);">10 of 12 taxonomy columns at high or medium-high confidence.</strong>
+    Two gaps — thermal cycle type and Q value — are confirmed proprietary. The pipeline marks these as <em>unlikely to resolve without direct company disclosure</em> and stops iterating.
+  </div>
+  <div class="nav-row"><button class="btn-next" onclick="goTo(1)">See how findings are merged →</button></div>
+</div>
+
+<!-- ══ PHASE 1 ══════════════════════════════════════════════════ -->
+<div class="phase-panel" id="phase-1">
+  <div class="slabel">Iterative dossier — how each column evolved across 3 iterations</div>
+  <div class="prose">After each research iteration, a synthesis agent merges findings into the dossier using strict merge rules: higher-confidence values upgrade lower ones; conflicts are surfaced explicitly rather than silently resolved; no high-confidence value is downgraded without a direct authoritative contradiction. The changelog is the complete audit trail.</div>
+
+  <div id="changelogList"></div>
+
+  <div style="margin-top:1.5rem;">
+    <div class="slabel">Final dossier — 12 taxonomy columns</div>
+    <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:4px 14px;" id="dossierTbl"></div>
+  </div>
+
+  <div class="nav-row">
+    <button class="btn-back" onclick="goTo(0)">← Back</button>
+    <button class="btn-next" onclick="goTo(2)">See the gap assessment →</button>
+  </div>
+</div>
+
+<!-- ══ PHASE 2 ══════════════════════════════════════════════════ -->
+<div class="phase-panel" id="phase-2">
+  <div class="slabel">Gap report — readiness for LCOE modelling</div>
+  <div class="prose">The gap report asks: is what we have <em>sufficient to run a cost model</em>? It classifies each missing parameter by gap type, criticality, and whether an analogue exists. The overall verdict here is <strong style="color:var(--color-text-primary);">"Mostly Ready"</strong> — all blocking gaps can be bridged with clearly-flagged analogues.</div>
+
+  <div id="gapList"></div>
+
+  <div class="nav-row">
+    <button class="btn-back" onclick="goTo(1)">← Back</button>
+    <button class="btn-next" onclick="goTo(3)">See how gaps become model inputs →</button>
+  </div>
+</div>
+
+<!-- ══ PHASE 3 ══════════════════════════════════════════════════ -->
+<div class="phase-panel" id="phase-3">
+  <div class="slabel">model_setup.py — parameters passed to 1costingFE</div>
+  <div class="prose">Before <code>model_setup.py</code> is written, the gap report must be manually reviewed and approved for each blocking gap. Items marked as unresolvable are either set to framework defaults or explicitly omitted. These inputs are then passed to 1costingFE, a standardized fusion costing framework that models the full LCOE using a bottom-up accounting methodology consistent with Nuclear industry standards.</div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1rem;">
+    <span class="badge b-high">HIGH — published value</span>
+    <span class="badge b-medium">UNCERTAIN — analogue</span>
+    <span class="badge b-def">DEFAULT — framework</span>
+    <span class="badge b-gap">NOT MODELLED</span>
+  </div>
+
+  <div id="paramGroups"></div>
+
+  <div style="padding:12px 14px;background:var(--color-background-warning);border:0.5px solid var(--color-border-warning);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-warning);line-height:1.6;margin-bottom:1.5rem;">
+    <strong>Known model biases:</strong> blanket volume assumes full 4π coverage — overestimates CAS22 blanket cost (conservative bias).
+    Pulsed-operation thermal energy storage buffer is not modelled — a downward bias on total capital of unknown magnitude.
+  </div>
+
+  <div class="nav-row">
+    <button class="btn-back" onclick="goTo(2)">← Back</button>
+    <button class="btn-next" onclick="goTo(4)">See the model output →</button>
+  </div>
+</div>
+
+<!-- ══ PHASE 4 ══════════════════════════════════════════════════ -->
+<div class="phase-panel" id="phase-4">
+  <div class="slabel">1costingFE output — ST-E1 rev D · 1,000 MWe scaled · 80% availability · 30 yr · NOAK</div>
+  <div class="prose"><code>model_setup.py</code> passes geometry, efficiency parameters, and operating requirements into 1costingFE, which closes the power balance internally before computing costs. The model runs through a sequence of computation stages: power balance (dispatched by confinement family, producing fusion power, Q_eng, and recirculating fraction), geometry (radial build to component volumes), capital costs (CAS10–60, with CAS22 disaggregated into sub-accounts for blanket, magnets, heating systems, vacuum, and others), and O&M and levelized economics (CAS70–90). Where the research pipeline could not characterize a parameter — radial build thicknesses, auxiliary power loads, cost account scaling factors — 1costingFE loads concept-specific defaults from its YAML configuration, and the corresponding parameter is tagged DEFAULT in the input file. The sliders below adjust three high-elasticity inputs and recompute LCOE using the actual JAX autodiff elasticities from the model run.</div>
+
+  <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+    <div>
+      <label style="font-size:12px;color:var(--color-text-secondary);display:block;margin-bottom:4px;">Availability: <span id="avVal">80%</span></label>
+      <input type="range" min="60" max="95" value="80" step="1" id="avSlider" oninput="updateModel()" style="width:180px;">
+    </div>
+    <div>
+      <label style="font-size:12px;color:var(--color-text-secondary);display:block;margin-bottom:4px;">Construction time: <span id="ctVal">8 yr</span></label>
+      <input type="range" min="5" max="12" value="8" step="1" id="ctSlider" oninput="updateModel()" style="width:180px;">
+    </div>
+    <div>
+      <label style="font-size:12px;color:var(--color-text-secondary);display:block;margin-bottom:4px;">η thermal: <span id="etVal">0.33</span></label>
+      <input type="range" min="28" max="42" value="33" step="1" id="etSlider" oninput="updateModel()" style="width:180px;">
+    </div>
+  </div>
+
+  <div class="metric-grid" id="metricCards"></div>
+
+  <div class="slabel">CAS22 reactor plant sub-accounts (real output — total $4,167.2M at 1 GWe)</div>
+  <div id="casChart" style="margin-bottom:1.5rem;"></div>
+
+  <div class="slabel">Sensitivity — JAX autodiff elasticities (%LCOE per %param)</div>
+  <div id="sensChart"></div>
+
+  <div class="nav-row">
+    <button class="btn-back" onclick="goTo(3)">← Back</button>
+    <button class="btn-next" onclick="goTo(5)">Compare concepts →</button>
+  </div>
+</div>
+
+<!-- ══ PHASE 5 ══════════════════════════════════════════════════ -->
+<div class="phase-panel" id="phase-5">
+  <div class="slabel">Cross-concept comparison — 1,000 MWe net · 30 yr · D-T fuel · concept-native CF &amp; η_th</div>
+  <div class="prose">Both concepts run through the same pipeline at a 1 GWe net reference point — consistent with the ST-E1 detail panel in Step 5. Capacity factor and thermal efficiency are concept-native: Stellaris uses 88% / 38% (Helios analogue + EUROFER97-limited steam Rankine), ST-E1 uses 80% / 33% (steam Rankine analogue, no thermal cycle committed in public documents).</div>
+
+  <div class="con-grid" id="conGrid"></div>
+
+  <div style="margin-top:1.5rem;padding:14px 16px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-secondary);line-height:1.6;">
+    <div style="font-size:12px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:0.05em;font-weight:500;margin-bottom:8px;">What the numbers say — and what they don't</div>
+    Stellaris' headline LCOE is ~10% higher than ST-E1's (154.9 vs 140.8 $/MWh), and overnight cost is ~14% higher ($10,655 vs $9,377/kW). This is the opposite of what the structural physics suggests — Stellaris has an assumed 8-point capacity-factor advantage (88 vs 80%) and 5-point thermal-efficiency advantage (0.38 vs 0.33). Applying ST-E1's elasticities (η_th −0.34, availability −0.87) shows that under matched physics ST-E1 would drop from 140.8 to ~123 $/MWh — leaving a ~$32 gap in ST-E1's favor that comes entirely from capital structure and replacement burden: Stellaris' coil cost is calculated as approximately 4.5× that of ST-E1's.
+  </div>
+
+  <div class="nav-row"><button class="btn-back" onclick="goTo(4)">← Back</button></div>
+</div>
+
+<script>
+/* ── DATA ───────────────────────────────────────────────────────── */
+
+const SOURCES = [
+  { iter:'1', type:'company', lbl:'company doc',
+    title:'ST-E1 pilot plant specs',
+    meta:'iter-01 · ste1-pilot-plant-specs.md · 2,091 chars · 0.1s',
+    contrib:'Pulsed operation confirmed. Molten salt thermal energy storage discussed as power conversion buffer. Thermal cycle type not yet committed.' },
+  { iter:'1', type:'company', lbl:'company doc',
+    title:'Tokamak Energy overview',
+    meta:'iter-01 · tokamak-energy-overview.md · 1,028 chars · 0.2s',
+    contrib:'$335M funding ($275M private, $60M government). ~280 staff. DOE Milestone-Based program selection May 2023. ST40 → ST80-HTS → ST-E1 roadmap.' },
+  { iter:'1', type:'company', lbl:'company doc',
+    title:'ST40 heating systems',
+    meta:'iter-01 · st40-heating-systems.md · 4,524 chars · 0.3s',
+    contrib:'ST40 uses NBI + ECRH. 1 MW Kyoto Fusioneering gyrotron (104/137 GHz) installed Jan 2025. ECRH described as "crucial for future power plants." Combined approach being tested to inform pilot plant design.' },
+  { iter:'1', type:'peer', lbl:'peer-reviewed',
+    title:'Gryaznevich et al. — pulsed spherical tokamak reactors',
+    meta:'iter-01 · MDPI Plasma 2023 · 43,748 chars · 3 pages claude_replace · 159s',
+    contrib:'Physics case for pulsed STs. "More desirable than steady-state." Pulse lengths 15+ minutes. HTS CS provides order-of-magnitude higher inductive flux. Pages 3, 6, 7 flagged: EQ_FRAG and garbled math — reconstructed by Claude.' },
+  { iter:'2', type:'company', lbl:'company doc',
+    title:'ST-E1 design evolution',
+    meta:'iter-02 · tokamak-energy-st-e1-design-evolution.md · 3,648 chars · 0.2s',
+    contrib:'A=2.0, R=4.25m, 85 MWe (initial 2023) → A=2.3, R=5.0m, 450–750 MWe (Rev D 2025). Design not yet stabilised — wide uncertainty bands on all performance targets.' },
+  { iter:'2', type:'company', lbl:'company doc',
+    title:'Tokamak Energy roadmap',
+    meta:'iter-02 · tokamak-energy-roadmap.md · 2,215 chars · 0.2s',
+    contrib:'ST80-HTS targets 15-min pulses, completion ~2026. ST-E1 grid connection "early 2030s" (now realistically mid-2030s). Roadmap sequencing confirmed.' },
+  { iter:'2', type:'company', lbl:'company doc',
+    title:'Tokamak Energy heating systems',
+    meta:'iter-02 · tokamak-energy-heating-systems.md · 5,976 chars · 0.3s',
+    contrib:'ECRH described as "crucial for future power plants" due to current drive capability in limited-CS spherical tokamak geometry.' },
+  { iter:'2', type:'peer', lbl:'peer-reviewed',
+    title:'Humphry-Baker & Smith 2019 — center stack shielding',
+    meta:'iter-02 · spherical-tokamak-center-stack-shielding.md · 103,071 chars · long extraction',
+    contrib:'WC-FeCr cermet optimal for center stack. 32 cm radial depth. ~1.4×10¹⁷ m⁻²s⁻¹ fast neutron flux into SC core at R=1.35 m. Irradiation database gap explicitly identified in the paper itself.' },
+  { iter:'3', type:'peer', lbl:'peer-reviewed',
+    title:'Alieva et al. 2026 — EC heating for FPP',
+    meta:'iter-03 · tokamak-energy-ec-heating-pilot-plant.md · EPJ Web of Conferences · 1,703 chars · 1.1s',
+    contrib:'FPP flat-top relies exclusively on EC waves in O-mode. EC is the sole auxiliary source. Directly resolved the NBI-vs-ECRH conflict from iter-02. Most authoritative heating source in the dataset.' },
+  { iter:'3', type:'company', lbl:'press release',
+    title:'Tokamak Energy Demo4 magnet breakthrough',
+    meta:'iter-03 · tokamak-energy-demo4-magnets.md · Nov 19 2025 · 3,772 chars · 1.8s',
+    contrib:'Complete 14 TF + 2 PF HTS coil set at 11.8 T, 30 K. 7M ampere-turns through center column. World-first for a complete HTS tokamak coil set — beyond single-coil demos (CFS 20 T, 2021).' },
+  { iter:'3', type:'company', lbl:'conference abstract',
+    title:'ST-E1 DPP 2025 abstract (Maartensson et al.)',
+    meta:'iter-03 · tokamak-energy-st-e1-dpp2025-abstract.md · APS DPP Nov 2025 · 1,590 chars · 0.1s',
+    contrib:'Authoritative: R=5.0 m, A=2.3, B=5.25 T, 450–750 MWe net, TBR=1.2, outboard-only Li blanket. "Final pre-conceptual design point." Maintenance-first design methodology confirmed.' },
+];
+
+const CHANGELOG = [
+  { iter:1, summary:'12 columns initialised from baseline + first-pass research', changes:[
+    { col:'Confinement Family', from:'—', to:'MFE (high)', why:'Confirmed baseline + research' },
+    { col:'Confinement Concept', from:'—', to:'Spherical tokamak (high)', why:'A=2.3; Tokamak Energy self-identification' },
+    { col:'Fuel', from:'—', to:'D-T (high)', why:'TBR=1.2 outboard Li blanket implies D-T' },
+    { col:'Primary Heating', from:'—', to:'RF (ECRH) (medium)', why:'ECRH emphasised for current drive; NBI also on ST40' },
+    { col:'Magnet Type', from:'—', to:'HTS (wound) (high)', why:'REBCO, 5.25 T on-axis from ST-E1 specs' },
+    { col:'Tritium Breeding', from:'—', to:'Liquid Li blanket (high)', why:'Outboard-only, TBR=1.2 from pilot plant specs' },
+    { col:'Operation Mode', from:'—', to:'Pulsed (high)', why:'15+ min pulses; "more desirable than steady-state"' },
+  ], gaps:'Primary heating MW split for pilot plant, thermal cycle type, Q value, center-stack shielding details.' },
+  { iter:2, summary:'4 columns updated — center-stack architecture confirmed, heating conflict created', changes:[
+    { col:'Primary Heating', from:'RF (ECRH) (medium)', to:'RF + NBI (medium)', why:'ST40 uses NBI + 1 MW ECRH; combined approach being tested. CONFLICT CREATED — needs resolution.' },
+    { col:'Neutron Management', from:'Integrated blanket/shield (medium)', to:'Integrated blanket/shield (high)', why:'Humphry-Baker & Smith 2019: WC cermet center-stack confirmed; asymmetric architecture documented' },
+    { col:'Operation Mode (notes)', from:'Pulsed', to:'Pulsed — notes enriched', why:'Power conversion literature explicitly addresses molten salt TES for pulsed tokamak operation' },
+  ], gaps:'Energy Capture (thermal cycle), Plasma State (Q value), Primary Heating MW split for ST-E1.' },
+  { iter:3, summary:'5 updates — heating conflict resolved by peer-reviewed source; overall confidence upgraded', changes:[
+    { col:'Primary Heating', from:'RF + NBI (medium)', to:'RF (ECRH) (medium-high)', why:'CONFLICT RESOLVED: Alieva et al. EPJ 2026 (Tokamak Energy RF physics team) states FPP flat-top "exclusively EC waves." Higher-authority source overrides ST40 press coverage.' },
+    { col:'Magnet Type citation', from:'HTS (wound) (high)', to:'HTS (wound) (high) — citation upgraded', why:'Demo4 Nov 2025: complete 14 TF + 2 PF system at 11.8 T — world-first coil-set validation' },
+    { col:'Tritium Breeding', from:'Liquid Li blanket (high)', to:'TBR=1.2 confirmed', why:'DPP 2025 abstract explicitly states outboard-only Li, TBR=1.2' },
+    { col:'Operation Mode', from:'Pulsed (high)', to:'Quasi-steady (high)', why:'Schema v0.2 rule: pulse > 5 min = Quasi-steady. Reclassified.' },
+    { col:'Overall confidence', from:'medium', to:'medium-high', why:'10 of 12 columns at high or medium-high. Two gaps confirmed proprietary — no further iteration recommended.' },
+  ], gaps:'Energy Capture (thermal cycle type — confirmed proprietary). Q value (deliberately unpublished). No further iteration recommended.' },
+];
+
+const DOSSIER = [
+  { col:'Confinement Family',  val:'MFE',                          conf:'high',   note:'Standard magnetic confinement via tokamak fields' },
+  { col:'Confinement Concept', val:'Spherical tokamak',            conf:'high',   note:'A=2.3 — upper end of ST regime' },
+  { col:'Fuel',                val:'D-T',                          conf:'high',   note:'Confirmed by TBR=1.2 outboard Li blanket design' },
+  { col:'Primary Heating',     val:'RF (ECRH)',                    conf:'high',   note:'FPP flat-top exclusively EC waves — Alieva et al. EPJ 2026' },
+  { col:'Energy Capture',      val:'Thermal (unspecified)',         conf:'medium', note:'Cycle type not disclosed. Steam Rankine probable per STEP ST research.' },
+  { col:'Plasma State',        val:'Burning (inferred)',            conf:'medium', note:'Q deliberately unpublished. 450–750 MWe net implies burning plasma.' },
+  { col:'Magnet Type',         val:'HTS (wound)',                   conf:'high',   note:'REBCO. Demo4: complete 14 TF + 2 PF at 11.8 T validated Nov 2025.' },
+  { col:'Tritium Breeding',    val:'Liquid Li blanket',             conf:'high',   note:'Outboard-only. TBR=1.2. Inboard = WC cermet shielding only.' },
+  { col:'Neutron Management',  val:'Integrated blanket/shield',     conf:'high',   note:'Asymmetric: outboard Li blanket/shield, inboard WC cermet ~32 cm' },
+  { col:'Operation Mode',      val:'Quasi-steady',                  conf:'high',   note:'15+ min pulses. Schema v0.2: pulse > 5 min = Quasi-steady.' },
+  { col:'Repetition Rate',     val:'N/A',                           conf:'medium', note:'Long-pulse; inter-pulse gaps for CS re-magnetisation' },
+  { col:'Driver Technology',   val:'HTS magnets (REBCO, 5.25 T)',  conf:'high',   note:'R=5.0 m, A=2.3. Lower field than CFS-class; higher beta compensates.' },
+];
+
+const GAPS = [
+  { label:'LCOE blocking gaps', items:[
+    { name:'Q value / fusion gain', type:'proprietary', crit:'blocking',
+      bridge:'Not needed as a model input. 1costingFE solves backwards from net MWe. Q is an output cross-check (model derives Q_eng = 4.93), not an input.' },
+    { name:'Fusion power (Rev D)', type:'proprietary', crit:'blocking',
+      bridge:'Model derives P_fusion = 2,065 MW from net MWe + η_th + recirculating loads. Not an input.' },
+    { name:'Thermal efficiency / cycle type', type:'not-yet-sourced', crit:'important',
+      bridge:'Steam Rankine η_th = 0.33 used — analogue from STEP ST research. Range 30–38%. Flagged UNCERTAIN in model_setup.py. Sensitivity elasticity = −0.26.' },
+    { name:'EC heating power for ST-E1', type:'proprietary', crit:'important',
+      bridge:'50 MW DEFAULT used. True value derivable once Q or Ip (Rev D) is published. Sensitivity elasticity = +0.06 — low impact on LCOE.' },
+    { name:'Plant availability / capacity factor', type:'proprietary', crit:'blocking',
+      bridge:'0.80 from D-T MCF literature (Araiinejad & Shirvan 2025), shifted to lower half of 75–90% range for pulsed ST operation. Highest-elasticity gap in the model: −0.87.' },
+    { name:'Capital cost breakdown', type:'proprietary', crit:'blocking',
+      bridge:'All CAS accounts use framework defaults. 4π blanket volume overestimates CAS22 (conservative). Pulsed TES not modelled — downward bias of unknown magnitude.' },
+  ]},
+  { label:'Supply chain gaps', items:[
+    { name:'REBCO tape quantity for ST-E1', type:'proprietary / not-yet-sourced', crit:'important',
+      bridge:'Estimable from Demo4 coil scale + geometry scaling to ST-E1. Not yet computed.' },
+    { name:'Tritium startup inventory', type:'derivable', crit:'important',
+      bridge:'Estimable from P_fusion and TBR. ~1 kg at >$35,000/g for this power class.' },
+    { name:'WC cermet irradiation database', type:'truly-unknown', crit:'important',
+      bridge:'No 14 MeV neutron irradiation data exists in public domain. Explicitly flagged as a gap in Humphry-Baker & Smith 2019 — the original source paper.' },
+  ]},
+];
+
+const PARAMS = [
+  { group:'Customer requirements', items:[
+    { name:'net_electric_mw', val:'600', conf:'HIGH', note:'Central of published 450–750 MWe range (DPP 2025 abstract)' },
+    { name:'availability',    val:'0.80', conf:'UNCERTAIN', note:'Pulsed operation shifts to lower half of D-T MCF bracket. No published target.' },
+    { name:'lifetime_yr',     val:'30',   conf:'DEFAULT', note:'Standard fusion plant assumption' },
+    { name:'construction_time_yr', val:'8.0', conf:'UNCERTAIN', note:'Larger machine than reference (R0=5.0 vs 3.0 m). No published schedule.' },
+  ]},
+  { group:'ST-E1 Rev D geometry', items:[
+    { name:'R0',        val:'5.0 m',  conf:'HIGH', note:'Published DPP 2025 abstract' },
+    { name:'plasma_t',  val:'2.17 m', conf:'HIGH', note:'Derived: a = R0/A = 5.0/2.3' },
+    { name:'elon',      val:'2.5',    conf:'UNCERTAIN', note:'Typical ST elongation at A≈2.3; unpublished for ST-E1' },
+    { name:'blanket_t', val:'0.80 m', conf:'DEFAULT', note:'Outboard-only; 4π model used — overestimates CAS22 blanket (conservative)' },
+    { name:'ht_shield_t', val:'0.20 m', conf:'DEFAULT', note:'WC cermet ~32 cm from R=1.35 m study; ST-E1 scale not published' },
+  ]},
+  { group:'Power balance', items:[
+    { name:'eta_th',    val:'0.33', conf:'UNCERTAIN', note:'Steam Rankine analogue (STEP ST research). Range 30–38%. No cycle committed.' },
+    { name:'eta_pin',   val:'0.52', conf:'MEDIUM',    note:'ECRH gyrotron wall-plug efficiency. Current-gen ~50–55%.' },
+    { name:'p_input',   val:'50 MW', conf:'DEFAULT',  note:'Auxiliary ECRH power undisclosed. Placeholder. Elasticity = +0.06.' },
+    { name:'mn',        val:'1.1',   conf:'DEFAULT',  note:'Neutron energy multiplier for Li blanket. Outboard-only may reduce effective mn.' },
+    { name:'p_cool',    val:'15 MW', conf:'UNCERTAIN', note:'Slightly above default — Li metal primary circuit pumping.' },
+  ]},
+  { group:'Not modelled', items:[
+    { name:'Pulsed TES buffer', val:'—', conf:'NOT MODELLED', note:'Molten salt thermal energy storage required for quasi-steady grid output. Cost unknown — downward bias of unknown magnitude.' },
+    { name:'WC cermet qual. cost', val:'—', conf:'NOT MODELLED', note:'Irradiation qualification cost not in framework. No public data exists.' },
+  ]},
+];
+
+const CAS22 = [
+  { code:'C220101', name:'Blanket',         val:1070.4 },
+  { code:'C220102', name:'Shield',          val:610.8  },
+  { code:'C220103', name:'Coils (magnets)', val:516.1  },
+  { code:'C220111', name:'Installation',    val:456.1  },
+  { code:'C220104', name:'Heating systems', val:353.2  },
+  { code:'C220106', name:'Vacuum systems',  val:288.6  },
+  { code:'C220200', name:'Main coolant',    val:206.8  },
+  { code:'C220110', name:'Other reactor',   val:161.9  },
+  { code:'C220500', name:'Fuel handling',   val:120.0  },
+  { code:'C220108', name:'Divertor',        val:112.7  },
+];
+
+const SENS_E = [
+  { p:'availability',        v:-0.8720 },
+  { p:'R0 (major radius)',   v:+0.4526 },
+  { p:'elongation (κ)',      v:+0.4526 },
+  { p:'construction time',   v:+0.3952 },
+  { p:'η_th (thermal eff)',  v:-0.3438 },
+  { p:'plasma minor radius', v:+0.3192 },
+  { p:'blanket thickness',   v:+0.3051 },
+  { p:'coil radial build',   v:+0.1616 },
+  { p:'B_max (peak field)',  v:+0.0808 },
+  { p:'p_input (heating)',   v:+0.0390 },
+];
+const SENS_F = [
+  { p:'interest rate (WACC)', v:+0.7062 },
+  { p:'inflation rate',       v:+0.0389 },
+];
+
+const CMP_DT = [
+  { name:'Spherical tokamak', sub:'ST-E1 class · HTS · 1 GWe scaled',  lcoe:140.8, oc:9377,  qe:7.06, cf:80, eta:0.33, pfus:3222, om:81.4, repl:147.8, hl:true,  omLabel:'Annual O&M (CAS71)', replLabel:'Annuitized replacement' },
+  { name:'QI stellarator',    sub:'Stellaris class · QI HTS · 1 GWe',   lcoe:154.9, oc:10655, qe:5.47, cf:88, eta:0.38, pfus:2768, om:81.4, repl:252.2, hl:false, omLabel:'Annual O&M (CAS71)', replLabel:'Annuitized replacement' },
+];
+
+/* ── BUILDERS ────────────────────────────────────────────────────── */
+
+function buildSources() {
+  const g = document.getElementById('srcGrid');
+  const f = g._f || 'all';
+  g.innerHTML = '';
+  SOURCES.forEach(s => {
+    if (f !== 'all' && s.iter !== f) return;
+    const d = document.createElement('div');
+    d.className = 'src-card';
+    d.innerHTML = `<span class="badge b-${s.type==='peer'?'peer':'company'}">${s.lbl}</span>
+      <div class="src-title">${s.title}</div>
+      <div class="src-meta"><span class="cdot c-hi"></span>iter-0${s.iter} · ${s.meta}</div>
+      <div class="src-contrib">${s.contrib}</div>`;
+    d.onclick = () => d.classList.toggle('sel');
+    g.appendChild(d);
+  });
+}
+
+function filterIter(el, v) {
+  document.querySelectorAll('.iter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('srcGrid')._f = v;
+  buildSources();
+}
+
+function buildChangelog() {
+  document.getElementById('changelogList').innerHTML = CHANGELOG.map((it, i) => `
+    <div class="block">
+      <div class="block-hdr" onclick="tog(this)">
+        <span class="bh-title">Iteration ${it.iter} — ${it.summary}</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="transition:transform 0.2s;color:var(--color-text-tertiary);${i===0?'transform:rotate(180deg)':''}"><path d="M4 6l4 4 4-4"/></svg>
+      </div>
+      <div class="block-body${i===0?' open':''}">
+        ${it.changes.map(c => `<div class="trow">
+          <span class="tcol">${c.col}</span>
+          <span class="tval">
+            <span style="color:var(--color-text-tertiary);font-size:12px;text-decoration:line-through;">${c.from}</span>
+            &nbsp;→&nbsp;<span class="badge b-changed">${c.to}</span>
+            <div class="tnote">${c.why}</div>
+          </span>
+        </div>`).join('')}
+        <div style="margin-top:10px;padding:8px 10px;background:var(--color-background-warning);border-radius:var(--border-radius-md);font-size:12px;color:var(--color-text-warning);">Remaining gaps after this iteration: ${it.gaps}</div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('dossierTbl').innerHTML = DOSSIER.map(r => `
+    <div class="trow">
+      <span class="tcol">${r.col}</span>
+      <span class="tval">
+        <span class="badge b-${r.conf}">${r.val}</span>
+        <div class="tnote">${r.note}</div>
+      </span>
+    </div>`).join('');
+}
+
+function buildGaps() {
+  document.getElementById('gapList').innerHTML = GAPS.map((g, gi) => `
+    <div style="margin-bottom:1.5rem;">
+      <div class="slabel" style="margin-bottom:8px;">${g.label}</div>
+      ${g.items.map((item, i) => `
+        <div class="block">
+          <div class="block-hdr" onclick="tog(this)">
+            <span class="bh-title">${item.name}</span>
+            <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+              <span class="badge b-${item.crit==='blocking'?'gap':'medium'}">${item.crit}</span>
+              <span class="badge b-def">${item.type}</span>
+              <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="transition:transform 0.2s;color:var(--color-text-tertiary);${gi===0&&i===0?'transform:rotate(180deg)':''}"><path d="M4 6l4 4 4-4"/></svg>
+            </div>
+          </div>
+          <div class="block-body${gi===0&&i===0?' open':''}">
+            <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;">
+              <strong style="color:var(--color-text-primary);">How it's bridged:</strong> ${item.bridge}
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+function buildParams() {
+  const cc = c => ({ HIGH:'high', UNCERTAIN:'medium', MEDIUM:'medium', DEFAULT:'def', 'NOT MODELLED':'gap' })[c] || 'def';
+  document.getElementById('paramGroups').innerHTML = PARAMS.map(g => `
+    <div style="margin-bottom:1.5rem;">
+      <div class="slabel" style="margin-bottom:8px;">${g.group}</div>
+      <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;padding:4px 14px;">
+        ${g.items.map(p => `<div class="trow">
+          <span class="tcol" style="font-family:var(--font-mono);font-size:12px;color:var(--color-text-info);">${p.name}</span>
+          <span class="tval">
+            <span class="badge b-${cc(p.conf)}">${p.val}</span>
+            <div class="tnote">${p.note}</div>
+          </span>
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function updateModel() {
+  const av = parseInt(document.getElementById('avSlider').value)/100;
+  const ct = parseInt(document.getElementById('ctSlider').value);
+  const et = parseInt(document.getElementById('etSlider').value)/100;
+  document.getElementById('avVal').textContent = Math.round(av*100)+'%';
+  document.getElementById('ctVal').textContent = ct+' yr';
+  document.getElementById('etVal').textContent = et.toFixed(2);
+
+  const lcoe = +(140.8 * Math.pow(0.80/av,0.872) * Math.pow(8/ct,-0.395) * Math.pow(0.33/et,0.344)).toFixed(1);
+
+  // P_fusion scales inversely with eta_th at fixed P_net:
+  // P_gross_thermal = (P_net + P_recirc) / eta_th
+  // P_fusion ≈ P_gross_thermal / (mn * blanket_coverage)
+  // Base: eta_th=0.33 → P_fusion=3222 MW (1 GW scaled), so P_fusion ∝ 1/eta_th
+  const pfus = Math.round(3222 * 0.33 / et);
+
+  document.getElementById('metricCards').innerHTML = `
+    <div class="metric-card"><div class="mc-lbl">LCOE</div><div class="mc-val">${lcoe}</div><div class="mc-unit">$/MWh</div></div>
+    <div class="metric-card"><div class="mc-lbl">Overnight cost</div><div class="mc-val">9,377</div><div class="mc-unit">$/kW</div></div>
+    <div class="metric-card"><div class="mc-lbl">P_fusion (model output)</div><div class="mc-val">${pfus.toLocaleString()}</div><div class="mc-unit">MW</div></div>`;
+
+  const mx = Math.max(...CAS22.map(c=>c.val));
+  const atBase = Math.abs(et - 0.33) < 0.005;
+  document.getElementById('casChart').innerHTML =
+    (!atBase ? `<div style="padding:10px 14px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-tertiary);margin-bottom:10px;">CAS22 breakdown shown at base case only (η_th = 0.33). Changing thermal efficiency shifts P_fusion and propagates into blanket volume, wall loading, and shield sizing — moving CAS22 costs in the full model.</div>` : '') +
+    CAS22.map(c=>`<div class="bar-row" style="${!atBase?'opacity:0.35;':''}">
+      <div class="bar-lbl">${c.code} — ${c.name}</div>
+      <div class="bar-trk"><div class="bar-fill" style="width:${(c.val/mx*100).toFixed(0)}%;background:#185FA520;color:#185FA5;">${c.val.toFixed(0)}</div></div>
+      <div class="bar-end">$${c.val.toFixed(0)}M</div>
+    </div>`).join('');
+
+  const mxs = Math.max(...SENS_E.map(s=>Math.abs(s.v)));
+  document.getElementById('sensChart').innerHTML =
+    SENS_E.map(s=>`<div class="sens-row">
+      <div class="sens-lbl">${s.p}</div>
+      <div class="sens-trk"><div class="sens-fill ${s.v<0?'s-neg':'s-pos'}" style="width:${(Math.abs(s.v)/mxs*100).toFixed(0)}%">${s.v>0?'+':''}${s.v.toFixed(4)}</div></div>
+    </div>`).join('')+
+    `<div style="margin-top:10px;font-size:12px;color:var(--color-text-tertiary);">Financial parameters:</div>`+
+    SENS_F.map(s=>`<div class="sens-row">
+      <div class="sens-lbl">${s.p}</div>
+      <div class="sens-trk"><div class="sens-fill s-fin" style="width:${(Math.abs(s.v)/mxs*100).toFixed(0)}%">${s.v>0?'+':''}${s.v.toFixed(4)}</div></div>
+    </div>`).join('');
+}
+
+function buildConcepts() {
+  document.getElementById('conGrid').innerHTML = CMP_DT.map(c=>`
+    <div class="con-card${c.hl?' hl':''}">
+      <div class="cc-name">${c.name}</div>
+      <div class="cc-sub">${c.sub}</div>
+      <div class="cc-lcoe">${c.lcoe.toFixed(1)}</div>
+      <div class="cc-unit">$/MWh LCOE</div>
+      <div class="srow"><span>Overnight cost</span><span>$${c.oc.toLocaleString()}/kW</span></div>
+      <div class="srow"><span>Capacity factor</span><span>${c.cf}%</span></div>
+      <div class="srow"><span>Thermal efficiency</span><span>${c.eta.toFixed(2)}</span></div>
+      <div class="srow"><span>Q engineering</span><span>${c.qe.toFixed(2)}</span></div>
+      <div class="srow"><span>P_fusion</span><span>${c.pfus.toLocaleString()} MW</span></div>
+      <div class="srow"><span>${c.omLabel}</span><span>$${c.om.toFixed(1)}M/yr</span></div>
+      <div class="srow"><span>${c.replLabel}</span><span>$${c.repl.toFixed(1)}M/yr</span></div>
+    </div>`).join('');
+
+}
+
+/* ── Utils ───────────────────────────────────────────────────────── */
+function tog(hdr) {
+  const b = hdr.nextElementSibling;
+  b.classList.toggle('open');
+  const ch = hdr.querySelector('.chev');
+  if (ch) ch.style.transform = b.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+function goTo(n) {
+  document.querySelectorAll('.phase-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.phase-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('#dots .dot').forEach((d,i)=>d.classList.toggle('active',i===n));
+  document.getElementById('phase-'+n).classList.add('active');
+  document.querySelector(`.phase-btn[data-p="${n}"]`).classList.add('active');
+  if (n===4) updateModel();
+  if (n===5) buildConcepts();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+buildSources();
+buildChangelog();
+buildGaps();
+buildParams();
+</script>
+</body>
+</html>
