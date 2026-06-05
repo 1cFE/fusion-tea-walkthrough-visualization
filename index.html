@@ -167,7 +167,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px;
 
 <div class="dots" id="dots">
   <div class="dot active"></div><div class="dot"></div><div class="dot"></div>
-  <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+  <div class="dot"></div><div class="dot"></div>
 </div>
 
 <div class="phase-nav">
@@ -176,7 +176,6 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px;
   <button class="phase-btn" data-p="2" onclick="goTo(2)"><span class="sn">Step 3</span>Gap assessment</button>
   <button class="phase-btn" data-p="3" onclick="goTo(3)"><span class="sn">Step 4</span>Model inputs</button>
   <button class="phase-btn" data-p="4" onclick="goTo(4)"><span class="sn">Step 5</span>LCOE results</button>
-  <button class="phase-btn" data-p="5" onclick="goTo(5)"><span class="sn">Step 6</span>Comparison</button>
 </div>
 
 <!-- ══ PHASE 0 ══════════════════════════════════════════════════ -->
@@ -257,7 +256,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px;
 
 <!-- ══ PHASE 4 ══════════════════════════════════════════════════ -->
 <div class="phase-panel" id="phase-4">
-  <div class="slabel">1costingFE output — ST-E1 rev D · 1,000 MWe scaled · 80% availability · 30 yr · NOAK</div>
+  <div class="slabel">1costingFE output — ST-E1 rev D · 450 MWe native · 1 GWe NOAK projection · 80% availability · 30 yr</div>
   <div class="prose"><code>model_setup.py</code> passes geometry, efficiency parameters, and operating requirements into 1costingFE, which closes the power balance internally before computing costs. The model runs through a sequence of computation stages: power balance (dispatched by confinement family, producing fusion power, Q_eng, and recirculating fraction), geometry (radial build to component volumes), capital costs (CAS10–60, with CAS22 disaggregated into sub-accounts for blanket, magnets, heating systems, vacuum, and others), and O&M and levelized economics (CAS70–90). Where the research pipeline could not characterize a parameter — radial build thicknesses, auxiliary power loads, cost account scaling factors — 1costingFE loads concept-specific defaults from its YAML configuration, and the corresponding parameter is tagged DEFAULT in the input file. The sliders below adjust three high-elasticity inputs and recompute LCOE using the actual JAX autodiff elasticities from the model run.</div>
 
   <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
@@ -277,7 +276,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px;
 
   <div class="metric-grid" id="metricCards"></div>
 
-  <div class="slabel">CAS22 reactor plant sub-accounts (real output — total $4,167.2M at 1 GWe)</div>
+  <div class="slabel">CAS22 reactor plant sub-accounts (1 GWe NOAK projection — total $7,618.4M)</div>
   <div id="casChart" style="margin-bottom:1.5rem;"></div>
 
   <div class="slabel">Sensitivity — JAX autodiff elasticities (%LCOE per %param)</div>
@@ -285,23 +284,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px;
 
   <div class="nav-row">
     <button class="btn-back" onclick="goTo(3)">← Back</button>
-    <button class="btn-next" onclick="goTo(5)">Compare concepts →</button>
   </div>
-</div>
-
-<!-- ══ PHASE 5 ══════════════════════════════════════════════════ -->
-<div class="phase-panel" id="phase-5">
-  <div class="slabel">Cross-concept comparison — 1,000 MWe net · 30 yr · D-T fuel · concept-native CF &amp; η_th</div>
-  <div class="prose">Both concepts run through the same pipeline at a 1 GWe net reference point — consistent with the ST-E1 detail panel in Step 5. Capacity factor and thermal efficiency are concept-native: Stellaris uses 88% / 38% (Helios analogue + EUROFER97-limited steam Rankine), ST-E1 uses 80% / 33% (steam Rankine analogue, no thermal cycle committed in public documents).</div>
-
-  <div class="con-grid" id="conGrid"></div>
-
-  <div style="margin-top:1.5rem;padding:14px 16px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-secondary);line-height:1.6;">
-    <div style="font-size:12px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:0.05em;font-weight:500;margin-bottom:8px;">What the numbers say — and what they don't</div>
-    Stellaris' headline LCOE is ~10% higher than ST-E1's (154.9 vs 140.8 $/MWh), and overnight cost is ~14% higher ($10,655 vs $9,377/kW). This is the opposite of what the structural physics suggests — Stellaris has an assumed 8-point capacity-factor advantage (88 vs 80%) and 5-point thermal-efficiency advantage (0.38 vs 0.33). Applying ST-E1's elasticities (η_th −0.34, availability −0.87) shows that under matched physics ST-E1 would drop from 140.8 to ~123 $/MWh — leaving a ~$32 gap in ST-E1's favor that comes entirely from capital structure and replacement burden: Stellaris' coil cost is calculated as approximately 4.5× that of ST-E1's.
-  </div>
-
-  <div class="nav-row"><button class="btn-back" onclick="goTo(4)">← Back</button></div>
 </div>
 
 <script>
@@ -420,7 +403,7 @@ const GAPS = [
 
 const PARAMS = [
   { group:'Customer requirements', items:[
-    { name:'net_electric_mw', val:'600', conf:'HIGH', note:'Central of published 450–750 MWe range (DPP 2025 abstract)' },
+    { name:'net_electric_mw', val:'450', conf:'HIGH', note:'Native design point from DPP 2025 abstract (450–750 MWe range, lower bound used)' },
     { name:'availability',    val:'0.80', conf:'UNCERTAIN', note:'Pulsed operation shifts to lower half of D-T MCF bracket. No published target.' },
     { name:'lifetime_yr',     val:'30',   conf:'DEFAULT', note:'Standard fusion plant assumption' },
     { name:'construction_time_yr', val:'8.0', conf:'UNCERTAIN', note:'Larger machine than reference (R0=5.0 vs 3.0 m). No published schedule.' },
@@ -428,7 +411,7 @@ const PARAMS = [
   { group:'ST-E1 Rev D geometry', items:[
     { name:'R0',        val:'5.0 m',  conf:'HIGH', note:'Published DPP 2025 abstract' },
     { name:'plasma_t',  val:'2.17 m', conf:'HIGH', note:'Derived: a = R0/A = 5.0/2.3' },
-    { name:'elon',      val:'2.5',    conf:'UNCERTAIN', note:'Typical ST elongation at A≈2.3; unpublished for ST-E1' },
+    { name:'elon',      val:'2.8',    conf:'UNCERTAIN', note:'Estimated: typical ST elongation; MAST-U κ~2.5–3.0, pulsed-ST paper cites κ=3' },
     { name:'blanket_t', val:'0.80 m', conf:'DEFAULT', note:'Outboard-only; 4π model used — overestimates CAS22 blanket (conservative)' },
     { name:'ht_shield_t', val:'0.20 m', conf:'DEFAULT', note:'WC cermet ~32 cm from R=1.35 m study; ST-E1 scale not published' },
   ]},
@@ -446,16 +429,16 @@ const PARAMS = [
 ];
 
 const CAS22 = [
-  { code:'C220101', name:'Blanket',         val:1070.4 },
-  { code:'C220102', name:'Shield',          val:610.8  },
-  { code:'C220103', name:'Coils (magnets)', val:516.1  },
-  { code:'C220111', name:'Installation',    val:456.1  },
-  { code:'C220104', name:'Heating systems', val:353.2  },
-  { code:'C220106', name:'Vacuum systems',  val:288.6  },
-  { code:'C220200', name:'Main coolant',    val:206.8  },
-  { code:'C220110', name:'Other reactor',   val:161.9  },
+  { code:'C220101', name:'Blanket',         val:753.3  },
+  { code:'C220102', name:'Shield',          val:430.0  },
+  { code:'C220103', name:'Coils (magnets)', val:1170.7 },
+  { code:'C220111', name:'Installation',    val:443.0  },
+  { code:'C220104', name:'Heating systems', val:278.5  },
+  { code:'C220106', name:'Vacuum systems',  val:228.5  },
+  { code:'C220200', name:'Main coolant',    val:205.1  },
+  { code:'C220110', name:'Other reactor',   val:121.2  },
   { code:'C220500', name:'Fuel handling',   val:120.0  },
-  { code:'C220108', name:'Divertor',        val:112.7  },
+  { code:'C220108', name:'Divertor',        val:76.6   },
 ];
 
 const SENS_E = [
@@ -513,7 +496,7 @@ function buildChangelog() {
         <span class="bh-title">Iteration ${it.iter} — ${it.summary}</span>
         <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="transition:transform 0.2s;color:var(--color-text-tertiary);${i===0?'transform:rotate(180deg)':''}"><path d="M4 6l4 4 4-4"/></svg>
       </div>
-      <div class="block-body${i===0?' open':''}">
+      <div class="block-body${i===2?' open':''}">
         ${it.changes.map(c => `<div class="trow">
           <span class="tcol">${c.col}</span>
           <span class="tval">
@@ -550,7 +533,7 @@ function buildGaps() {
               <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="transition:transform 0.2s;color:var(--color-text-tertiary);${gi===0&&i===0?'transform:rotate(180deg)':''}"><path d="M4 6l4 4 4-4"/></svg>
             </div>
           </div>
-          <div class="block-body${gi===0&&i===0?' open':''}">
+          <div class="block-body${gi===0&&i===2?' open':''}">
             <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;">
               <strong style="color:var(--color-text-primary);">How it's bridged:</strong> ${item.bridge}
             </div>
@@ -584,18 +567,60 @@ function updateModel() {
   document.getElementById('ctVal').textContent = ct+' yr';
   document.getElementById('etVal').textContent = et.toFixed(2);
 
-  const lcoe = +(140.8 * Math.pow(0.80/av,0.872) * Math.pow(8/ct,-0.395) * Math.pow(0.33/et,0.344)).toFixed(1);
+  // LCOE: elasticity-based adjustment from base (168.4 $/MWh at av=0.80, ct=8, et=0.33)
+  const lcoe = +(168.4 * Math.pow(0.80/av,0.872) * Math.pow(8/ct,-0.395) * Math.pow(0.33/et,0.344)).toFixed(1);
 
-  // P_fusion scales inversely with eta_th at fixed P_net:
-  // P_gross_thermal = (P_net + P_recirc) / eta_th
-  // P_fusion ≈ P_gross_thermal / (mn * blanket_coverage)
-  // Base: eta_th=0.33 → P_fusion=3222 MW (1 GW scaled), so P_fusion ∝ 1/eta_th
-  const pfus = Math.round(3222 * 0.33 / et);
+  // Overnight cost: base 12,917 $/kW at et=0.33, ct=8 yr
+  //
+  // Two channels through which η_th drives overnight cost at fixed 450 MWe net:
+  //
+  // Channel 1 — R0 scaling (machine must grow to produce higher P_fusion):
+  //   P_fusion ∝ 1/η_th at fixed P_net
+  //   P_fusion ∝ R0^3 at fixed A, B, confinement quality (tokamak volume scaling)
+  //   → R0 ∝ (1/η_th)^(1/3)
+  //   OC elasticity on R0 = +0.453 (from JAX autodiff sensitivity table)
+  //   → OC_R0 channel: (0.33/et)^(0.453/3) = (0.33/et)^0.151
+  //   This acts on the full overnight cost (whole machine scales with R0).
+  //
+  // Channel 2 — thermal island scaling (blanket, shield, primary coolant):
+  //   These scale more directly with P_fusion than R0 alone.
+  //   Fraction of overnight: (753.3 + 430.0 + 205.1) / 12917 ≈ 10.8%
+  //   Elasticity: blanket +0.305 (dominant; shield and coolant follow similarly)
+  //   Additional effect beyond R0 channel on this subset.
+  //
+  // Channel 3 — coils (C220103, largest CAS22 account at $1,170.7M = 9.1% of overnight):
+  //   Coil cost ∝ HTS tape volume ∝ coil cross-section × circumference
+  //   At fixed B and A, larger R0 → coil circumference ∝ R0, cross-section ∝ R0
+  //   → coil cost ∝ R0^2 ∝ (1/η_th)^(2/3)
+  //   But R0 channel already applies R0 elasticity +0.453 to the whole machine.
+  //   Coils scale *faster* than average (R0^2 vs R0^0.453 effective average),
+  //   so add incremental coil sensitivity beyond the R0 baseline:
+  //   coil_fraction = 1170.7 / 12917 ≈ 0.0906
+  //   incremental coil exponent = (2/3) - 0.151 = 0.515 (extra beyond R0 channel)
+  //
+  // construction_time shifts overnight via IDC ~2%/yr
+
+  const et0 = 0.33;
+  const etRatio = et0 / et; // >1 if et < base (lower efficiency → more expensive)
+
+  // R0 channel — applies to whole machine
+  const r0Channel = Math.pow(etRatio, 0.151);
+
+  // Thermal island channel — incremental on blanket+shield+coolant fraction
+  const thermalFrac = (753.3 + 430.0 + 205.1) / 12917; // 0.108
+  const thermalChannel = thermalFrac * (Math.pow(etRatio, 0.305) - Math.pow(etRatio, 0.151));
+
+  // Coil channel — incremental on coil fraction (coils scale as R0^2, faster than avg)
+  const coilFrac = 1170.7 / 12917; // 0.0906
+  const coilChannel = coilFrac * (Math.pow(etRatio, 2/3) - Math.pow(etRatio, 0.151));
+
+  const etFactor = r0Channel + thermalChannel + coilChannel;
+  const ctFactor = 1 + 0.02 * (ct - 8);
+  const oc = Math.round(12917 * etFactor * ctFactor);
 
   document.getElementById('metricCards').innerHTML = `
     <div class="metric-card"><div class="mc-lbl">LCOE</div><div class="mc-val">${lcoe}</div><div class="mc-unit">$/MWh</div></div>
-    <div class="metric-card"><div class="mc-lbl">Overnight cost</div><div class="mc-val">9,377</div><div class="mc-unit">$/kW</div></div>
-    <div class="metric-card"><div class="mc-lbl">P_fusion (model output)</div><div class="mc-val">${pfus.toLocaleString()}</div><div class="mc-unit">MW</div></div>`;
+    <div class="metric-card"><div class="mc-lbl">Overnight cost</div><div class="mc-val">${oc.toLocaleString()}</div><div class="mc-unit">$/kW${et !== 0.33 || ct !== 8 ? ' <span style="font-size:11px;opacity:0.6;">(approx)</span>' : ''}</div></div>`;
 
   const mx = Math.max(...CAS22.map(c=>c.val));
   const atBase = Math.abs(et - 0.33) < 0.005;
@@ -653,7 +678,6 @@ function goTo(n) {
   document.getElementById('phase-'+n).classList.add('active');
   document.querySelector(`.phase-btn[data-p="${n}"]`).classList.add('active');
   if (n===4) updateModel();
-  if (n===5) buildConcepts();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
