@@ -1,0 +1,242 @@
+{
+  "lcoe_1gw": 172.7,
+  "lcoe_native": 199.1,
+  "overnight_1gw": 13341.0,
+  "overnight_native": 15004.0,
+  "cas_top": {
+    "CAS10": {
+      "generic": 17.1,
+      "native": 17.1,
+      "gw1": 17.8
+    },
+    "CAS21": {
+      "generic": 404.4,
+      "native": 404.4,
+      "gw1": 677.3
+    },
+    "CAS22": {
+      "generic": 3754.7,
+      "native": 3754.7,
+      "gw1": 7618.4
+    },
+    "CAS23": {
+      "generic": 118.8,
+      "native": 118.8,
+      "gw1": 257.9
+    },
+    "CAS24": {
+      "generic": 50.6,
+      "native": 50.6,
+      "gw1": 109.9
+    },
+    "CAS25": {
+      "generic": 30.8,
+      "native": 30.8,
+      "gw1": 66.9
+    },
+    "CAS26": {
+      "generic": 51.3,
+      "native": 51.3,
+      "gw1": 111.4
+    },
+    "CAS27": {
+      "generic": 38.1,
+      "native": 38.1,
+      "gw1": 38.1
+    },
+    "CAS28": {
+      "generic": 5.0,
+      "native": 5.0,
+      "gw1": 5.0
+    },
+    "CAS29": {
+      "generic": 0.0,
+      "native": 0.0,
+      "gw1": 0.0
+    },
+    "CAS30": {
+      "generic": 890.8,
+      "native": 890.8,
+      "gw1": 1777.0
+    },
+    "CAS40": {
+      "generic": 26.2,
+      "native": 26.2,
+      "gw1": 27.6
+    },
+    "CAS50": {
+      "generic": 275.5,
+      "native": 275.5,
+      "gw1": 483.2
+    },
+    "CAS60": {
+      "generic": 1088.6,
+      "native": 1088.6,
+      "gw1": 2151.0
+    },
+    "CAS70": {
+      "generic": 160.4,
+      "native": 160.4,
+      "gw1": 284.3
+    },
+    "CAS80": {
+      "generic": 0.4,
+      "native": 0.4,
+      "gw1": 0.8
+    },
+    "CAS90": {
+      "generic": 506.5,
+      "native": 506.5,
+      "gw1": 1000.7
+    }
+  },
+  "cas22": {
+    "C220000": {
+      "generic": 3754.7,
+      "native": 3754.7,
+      "gw1": 7618.4
+    },
+    "C220101": {
+      "generic": 717.0,
+      "native": 717.0,
+      "gw1": 753.3
+    },
+    "C220102": {
+      "generic": 409.3,
+      "native": 409.3,
+      "gw1": 430.0
+    },
+    "C220103": {
+      "generic": 1170.7,
+      "native": 1170.7,
+      "gw1": 1170.7
+    },
+    "C220104": {
+      "generic": 278.5,
+      "native": 278.5,
+      "gw1": 278.5
+    },
+    "C220105": {
+      "generic": 44.4,
+      "native": 44.4,
+      "gw1": 46.2
+    },
+    "C220106": {
+      "generic": 217.5,
+      "native": 217.5,
+      "gw1": 228.5
+    },
+    "C220106_pump": {
+      "generic": 0.4,
+      "native": 0.4,
+      "gw1": 0.4
+    },
+    "C220106_vessel": {
+      "generic": 217.1,
+      "native": 217.1,
+      "gw1": 228.1
+    },
+    "C220107": {
+      "generic": 56.0,
+      "native": 56.0,
+      "gw1": 59.3
+    },
+    "C220108": {
+      "generic": 73.5,
+      "native": 73.5,
+      "gw1": 76.6
+    },
+    "C220109": {
+      "generic": 0.0,
+      "native": 0.0,
+      "gw1": 0.0
+    },
+    "C220110": {
+      "generic": 116.3,
+      "native": 116.3,
+      "gw1": 121.2
+    },
+    "C220111": {
+      "generic": 431.6,
+      "native": 431.6,
+      "gw1": 443.0
+    },
+    "C220112": {
+      "generic": 0.0,
+      "native": 0.0,
+      "gw1": 0.0
+    },
+    "C220200": {
+      "generic": 100.2,
+      "native": 100.2,
+      "gw1": 205.1
+    },
+    "C220300": {
+      "generic": 13.0,
+      "native": 13.0,
+      "gw1": 15.0
+    },
+    "C220400": {
+      "generic": 2.9,
+      "native": 2.9,
+      "gw1": 6.4
+    },
+    "C220500": {
+      "generic": 68.6,
+      "native": 68.6,
+      "gw1": 120.0
+    },
+    "C220600": {
+      "generic": 6.1,
+      "native": 6.1,
+      "gw1": 11.5
+    },
+    "C220700": {
+      "generic": 49.1,
+      "native": 49.1,
+      "gw1": 81.2
+    }
+  },
+  "p_input_sweep": [
+    {
+      "p_input": 40.0,
+      "lcoe": 194.5
+    },
+    {
+      "p_input": 45.0,
+      "lcoe": 196.8
+    },
+    {
+      "p_input": 50.0,
+      "lcoe": 199.1
+    },
+    {
+      "p_input": 55.0,
+      "lcoe": 201.5
+    },
+    {
+      "p_input": 60.0,
+      "lcoe": 203.8
+    }
+  ],
+  "elon_sweep": [
+    {
+      "elon": 2.5,
+      "lcoe": 190.2
+    },
+    {
+      "elon": 2.6,
+      "lcoe": 193.2
+    },
+    {
+      "elon": 2.8,
+      "lcoe": 199.1
+    },
+    {
+      "elon": 3.0,
+      "lcoe": 205.1
+    }
+  ],
+  "parsed_at": "2026-06-09T06:56:45.632013+00:00",
+  "source": "1cFE/fusion-tea - 21-spherical-tokamak-hts/model_output.txt"
+}
