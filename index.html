@@ -258,6 +258,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:18px;
 <!-- ══ PHASE 4 ══════════════════════════════════════════════════ -->
 <div class="phase-panel" id="phase-4">
   <div class="slabel">1costingFE output — ST-E1 rev D · 450 MWe native · 1 GWe NOAK projection · 80% availability · 30 yr</div>
+  <div id="dataFreshness" style="margin-bottom:12px;"></div>
   <div class="prose"><code>model_setup.py</code> passes geometry, efficiency parameters, and operating requirements into 1costingFE, which closes the power balance internally before computing costs. The model runs through a sequence of computation stages: power balance (dispatched by confinement family, producing fusion power, Q_eng, and recirculating fraction), geometry (radial build to component volumes), capital costs (CAS10–60, with CAS22 disaggregated into sub-accounts for blanket, magnets, heating systems, vacuum, and others), and O&M and levelized economics (CAS70–90). Where the research pipeline could not characterize a parameter — radial build thicknesses, auxiliary power loads, cost account scaling factors — 1costingFE loads concept-specific defaults from its YAML configuration, and the corresponding parameter is tagged DEFAULT in the input file. The sliders below adjust three high-elasticity inputs and recompute LCOE using the actual JAX autodiff elasticities from the model run.</div>
 
   <div style="display:flex;gap:1.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
@@ -429,18 +430,76 @@ const PARAMS = [
   ]},
 ];
 
-const CAS22 = [
-  { code:'C220101', name:'Blanket',         val:753.3  },
-  { code:'C220102', name:'Shield',          val:430.0  },
-  { code:'C220103', name:'Coils (magnets)', val:1170.7 },
-  { code:'C220111', name:'Installation',    val:443.0  },
-  { code:'C220104', name:'Heating systems', val:278.5  },
-  { code:'C220106', name:'Vacuum systems',  val:228.5  },
-  { code:'C220200', name:'Main coolant',    val:205.1  },
-  { code:'C220110', name:'Other reactor',   val:121.2  },
-  { code:'C220500', name:'Fuel handling',   val:120.0  },
-  { code:'C220108', name:'Divertor',        val:76.6   },
+// ── Live data from data.json (fetched from GitHub Pages) ─────────────
+// Fallback values used if fetch fails (last known good run)
+let LIVE = {
+  lcoe_1gw:      172.7,
+  overnight_1gw: 13341,
+  parsed_at:     null,
+  cas22: {
+    C220101: { gw1: 753.3  },
+    C220102: { gw1: 430.0  },
+    C220103: { gw1: 1170.7 },
+    C220111: { gw1: 443.0  },
+    C220104: { gw1: 278.5  },
+    C220106: { gw1: 228.5  },
+    C220200: { gw1: 205.1  },
+    C220110: { gw1: 121.2  },
+    C220500: { gw1: 120.0  },
+    C220108: { gw1: 76.6   },
+  },
+};
+
+// CAS22 display config (code → friendly name), order preserved for the chart
+const CAS22_META = [
+  { code:'C220101', name:'Blanket'         },
+  { code:'C220102', name:'Shield'          },
+  { code:'C220103', name:'Coils (magnets)' },
+  { code:'C220111', name:'Installation'    },
+  { code:'C220104', name:'Heating systems' },
+  { code:'C220106', name:'Vacuum systems'  },
+  { code:'C220200', name:'Main coolant'    },
+  { code:'C220110', name:'Other reactor'   },
+  { code:'C220500', name:'Fuel handling'   },
+  { code:'C220108', name:'Divertor'        },
 ];
+
+function getCAS22Array() {
+  return CAS22_META.map(m => ({
+    code: m.code,
+    name: m.name,
+    val:  (LIVE.cas22[m.code] || {}).gw1 || 0,
+  }));
+}
+
+// Fetch live data.json — cache-busted so we always pull the latest
+async function fetchLiveData() {
+  try {
+    const res = await fetch('data.json?v=' + Date.now());
+    if (!res.ok) throw new Error(res.status);
+    const json = await res.json();
+    LIVE = json;
+    const ts = json.parsed_at
+      ? new Date(json.parsed_at).toLocaleString(undefined, {dateStyle:'medium', timeStyle:'short'})
+      : 'unknown';
+    const el = document.getElementById('dataFreshness');
+    if (el) el.innerHTML =
+      `<span style="color:var(--color-text-tertiary);font-size:11px;">
+        ⏳ Live data · last model run: ${ts}
+        · <a href="https://github.com/1cFE/fusion-tea/blob/main/exploration/concept_analysis/analyses/21-spherical-tokamak-hts/model_output.txt"
+             target="_blank" style="color:inherit;text-decoration:underline;">source</a>
+      </span>`;
+    // Re-render Step 5 if it's the active panel
+    if (document.getElementById('phase-4').classList.contains('active')) updateModel();
+  } catch (e) {
+    console.warn('data.json fetch failed, using fallback values:', e);
+    const el = document.getElementById('dataFreshness');
+    if (el) el.innerHTML =
+      `<span style="color:var(--color-text-tertiary);font-size:11px;">
+        Using cached values (could not reach data.json)
+      </span>`;
+  }
+}
 
 const SENS_E = [
   { p:'availability',        v:-0.8720 },
@@ -568,10 +627,13 @@ function updateModel() {
   document.getElementById('ctVal').textContent = ct+' yr';
   document.getElementById('etVal').textContent = et.toFixed(2);
 
-  // LCOE: elasticity-based adjustment from base (168.4 $/MWh at av=0.80, ct=8, et=0.33)
-  const lcoe = +(168.4 * Math.pow(0.80/av,0.872) * Math.pow(8/ct,-0.395) * Math.pow(0.33/et,0.344)).toFixed(1);
+  // LCOE: elasticity-based adjustment from base. Base value is LIVE.lcoe_1gw
+  // (currently $172.7/MWh at av=0.80, ct=8, et=0.33), pulled from data.json.
+  const lcoe_base = LIVE.lcoe_1gw;
+  const oc_base   = LIVE.overnight_1gw;
+  const lcoe = +(lcoe_base * Math.pow(0.80/av,0.872) * Math.pow(8/ct,-0.395) * Math.pow(0.33/et,0.344)).toFixed(1);
 
-  // Overnight cost: base 12,917 $/kW at et=0.33, ct=8 yr
+  // Overnight cost: base oc_base $/kW at et=0.33, ct=8 yr
   //
   // Two channels through which η_th drives overnight cost at fixed 450 MWe net:
   //
@@ -608,26 +670,31 @@ function updateModel() {
   const r0Channel = Math.pow(etRatio, 0.151);
 
   // Thermal island channel — incremental on blanket+shield+coolant fraction
-  const thermalFrac = (753.3 + 430.0 + 205.1) / 12917; // 0.108
+  const blanket = (LIVE.cas22['C220101'] || {}).gw1 || 753.3;
+  const shield  = (LIVE.cas22['C220102'] || {}).gw1 || 430.0;
+  const coolant = (LIVE.cas22['C220200'] || {}).gw1 || 205.1;
+  const coils   = (LIVE.cas22['C220103'] || {}).gw1 || 1170.7;
+  const thermalFrac = (blanket + shield + coolant) / oc_base;
   const thermalChannel = thermalFrac * (Math.pow(etRatio, 0.305) - Math.pow(etRatio, 0.151));
 
   // Coil channel — incremental on coil fraction (coils scale as R0^2, faster than avg)
-  const coilFrac = 1170.7 / 12917; // 0.0906
+  const coilFrac = coils / oc_base;
   const coilChannel = coilFrac * (Math.pow(etRatio, 2/3) - Math.pow(etRatio, 0.151));
 
   const etFactor = r0Channel + thermalChannel + coilChannel;
   const ctFactor = 1 + 0.02 * (ct - 8);
-  const oc = Math.round(12917 * etFactor * ctFactor);
+  const oc = Math.round(oc_base * etFactor * ctFactor);
 
   document.getElementById('metricCards').innerHTML = `
     <div class="metric-card"><div class="mc-lbl">LCOE</div><div class="mc-val">${lcoe}</div><div class="mc-unit">$/MWh</div></div>
     <div class="metric-card"><div class="mc-lbl">Overnight cost</div><div class="mc-val">${oc.toLocaleString()}</div><div class="mc-unit">$/kW${et !== 0.33 || ct !== 8 ? ' <span style="font-size:11px;opacity:0.6;">(approx)</span>' : ''}</div></div>`;
 
-  const mx = Math.max(...CAS22.map(c=>c.val));
+  const cas22data = getCAS22Array();
+  const mx = Math.max(...cas22data.map(c=>c.val));
   const atBase = Math.abs(et - 0.33) < 0.005;
   document.getElementById('casChart').innerHTML =
     (!atBase ? `<div style="padding:10px 14px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-tertiary);margin-bottom:10px;">CAS22 breakdown shown at base case only (η_th = 0.33). Changing thermal efficiency shifts P_fusion and propagates into blanket volume, wall loading, and shield sizing — moving CAS22 costs in the full model.</div>` : '') +
-    CAS22.map(c=>`<div class="bar-row" style="${!atBase?'opacity:0.35;':''}">
+    cas22data.map(c=>`<div class="bar-row" style="${!atBase?'opacity:0.35;':''}">
       <div class="bar-lbl">${c.code} — ${c.name}</div>
       <div class="bar-trk"><div class="bar-fill" style="width:${(c.val/mx*100).toFixed(0)}%;background:#185FA520;color:#185FA5;">${c.val.toFixed(0)}</div></div>
       <div class="bar-end">$${c.val.toFixed(0)}M</div>
@@ -686,6 +753,7 @@ buildSources();
 buildChangelog();
 buildGaps();
 buildParams();
+fetchLiveData();
 </script>
 </body>
 </html>
